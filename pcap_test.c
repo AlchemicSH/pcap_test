@@ -10,7 +10,7 @@ int main()
 	char filter_exp[] = "port 80";
 	bpf_u_int32 mask;
 	bpf_u_int32 net;
-	struct pcap_pkthdr header;
+	struct pcap_pkthdr *header;
 	const u_char *packet;
 
 	int result = 0;
@@ -57,12 +57,22 @@ int main()
 
 		if(result == -1) break;
 
-		printf("%02x", packet[0]);
-		for(i = 1 ; i < header.len ; ++i)
+		printf("-------------------------------------------------\n");
+		printf("Jacked a packet with length of [%d]\n", header->len);
+		printf("-------------------------------------------------\n");
+
+		printf(" %02x ", packet[0]);
+		for(i = 1 ; i < header->len ; ++i)
 		{
-			printf(" %02x", packet[i]);
+			printf(" %02x ", packet[i]);
+			
+			if(i % 16 == 0)
+			{
+				printf("\n");
+			}
 		}
-		printf("\n\n");
+		printf("\n-----------------------------------------------\n");
+		printf("\n\n\n");
 	}
 	
 	pcap_close(handle);
