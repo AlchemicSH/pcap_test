@@ -14,6 +14,7 @@ int main()
 	const u_char *packet;
 
 	int result = 0;
+	int i;
 
 	dev = pcap_lookupdev(errbuf);
 	if(dev == NULL)
@@ -56,11 +57,10 @@ int main()
 
 		if(result == -1) break;
 
-		int i;
-
-		for(i = 0 ; i < 100 ; ++i)
+		printf("%02x", packet[0]);
+		for(i = 1 ; i < header.len ; ++i)
 		{
-			printf("%02x", packet[i]);
+			printf(" %02x", packet[i]);
 		}
 		printf("\n\n");
 	}
