@@ -15,6 +15,7 @@ int main()
 
 	int result = 0;
 	int i;
+	int enter_cnt;
 
 	dev = pcap_lookupdev(errbuf);
 	if(dev == NULL)
@@ -57,15 +58,19 @@ int main()
 
 		if(result == -1) break;
 
-		printf("-------------------------------------------------\n");
+		printf("-------------------------------------------------\n\n");
 		printf("Jacked a packet with length of [%d]\n", header->len);
-		printf("-------------------------------------------------\n");
+		printf("-------------------------------------------------\n\n");
+
+		printf(" %02x ", packet[0]);
+		enter_cnt = 1;
 
 		for(i = 0 ; i < header->len ; ++i)
 		{
 			printf(" %02x ", packet[i]);
+			++enter_cnt;
 			
-			if(i % 15 == 0)
+			if(enter_cnt % 15 == 0)
 			{
 				printf("\n");
 			}
