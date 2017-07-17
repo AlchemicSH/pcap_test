@@ -14,9 +14,14 @@ int main()
 	struct pcap_pkthdr *header;
 	const u_char *packet;
 
-	int result = 0;
-	int i;
-	int enter_cnt;
+	int result = 0;   // pcap_next_ex function result value
+	int i;    // for value
+	int enter_cnt;    // count value for print packet
+
+	int tcp_header_length;   // tcp header length value
+
+	int src_port = 0;    // tcp port value (source)
+	int dst_port = 0;    // tcp port value (destination)
 
 	dev = pcap_lookupdev(errbuf);
 	if(dev == NULL)
@@ -55,6 +60,9 @@ int main()
 
 	while((result = pcap_next_ex(handle, &header, &packet)) >= 0)
 	{
+		src_port = 0;
+		dst_port = 0;
+
 		if(result == 0) continue;  // There is no packet.
 
 		if(result == -1) break;    // Signal Lost.
@@ -80,8 +88,8 @@ int main()
 		printf("\n-----------------------------------------------------------\n");
 
 		// Analysis packet information
-		// First, ethernet information
-		printf("[Ethernet]\n");
+		// First, Ethernet header information
+		printf("[Ethernet Header]\n");
 		printf("Source Mac Address: ");
 		printf("%02x", packet[6]);
 		for(i = 7 ; i < 12 ; ++i)
@@ -98,11 +106,11 @@ int main()
 		}
 		printf("\n\n");
 
-		// Second, IPv4 information
+		// Second, IPv4 header information
 		if(packet[12] == 0x08 && packet[13] == 0x00)
 		{
-			printf("This packet type is IPv4!\n");
-			printf("[IPv4]\n");
+			printf("This packet type is IPv4!\n\n");
+			printf("[IPv4 Header]\n");
 			printf("Source IP Address: %d", packet[14 + 12]);
 			for(i = 1 ; i < 4 ; ++i)
 			{
@@ -115,13 +123,57 @@ int main()
 			{
 				printf(".%d", packet[14 + 16 + i]);
 			}
-			printf("\n");
+			printf("\n\n");
+
+			// Third, TCP header information
+			if(packet[14 + 9] == 0x06)
+			{
+				printf("This packet protocol is TCP!\n\n");
+
+				tcp_header_length = (int)packet[14 + 20 + 12] / 4;
+
+				printf("[TCP Header]\n");
+				printf("TCP Header Length: %d\n", tcp_header_length);
+
+				for(i = (14 + 20) ; i < (14 + 20 + 2) ; ++i)
+				{
+					if(i == (14 + 20))
+					{
+						src_port += (int)packet[i] * 16 * 16;
+					}
+					else
+					{
+						src_port += (int)packet[i];
+					}
+				}
+				printf("Source Port Number: %d\n", src_port);
+
+				for(i = (14 + 20 + 2) ; i < (14 + 20 + 2 + 2) ; ++i)
+				{
+					if(i == (14 + 20 + 2))
+					{
+						dst_port += (int)packet[i] * 16 * 16;
+					}
+					else
+					{
+						dst_port += (int)packet[i];
+					}
+				}
+				printf("Destination Port Number: %d\n", dst_port);
+			}
+			else
+			{
+				printf("This packet protocol is not TCP!\n");
+				continue;
+			}
 		}
 		else
 		{
 			printf("This packet type is not IPv4!\n");
 			continue;
 		}
+
+		printf("-----------------------------------------------------------\n");
 
 		printf("\n\n");
 	}
