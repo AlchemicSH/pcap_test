@@ -160,6 +160,22 @@ int main()
 					}
 				}
 				printf("Destination Port Number: %d\n", dst_port);
+				printf("\n");
+
+				// Fourth, Data information
+				printf("[Data]\n");
+				if(packet[14 + 20 + tcp_header_length] == 0x00)
+				{
+					printf("There is no data!\n");
+				}
+				else
+				{
+					for(i = (14 + 20 + tcp_header_length) ; i < header->len ; ++i)
+					{
+						printf("%c", packet[i]);
+					}
+					printf("\n");
+				}
 			}
 			else
 			{
