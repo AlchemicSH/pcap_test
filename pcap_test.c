@@ -61,12 +61,11 @@ int main()
 		printf("Jacked a packet with length of [%d]\n", header->len);
 		printf("-------------------------------------------------\n");
 
-		printf(" %02x ", packet[0]);
-		for(i = 1 ; i < header->len ; ++i)
+		for(i = 0 ; i < header->len ; ++i)
 		{
 			printf(" %02x ", packet[i]);
 			
-			if(i % 16 == 0)
+			if(i % 15 == 0)
 			{
 				printf("\n");
 			}
@@ -81,3 +80,4 @@ int main()
 
 	return 0;
 }
+
