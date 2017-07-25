@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					for(i = (14 + 20 + tcp_header_length) ; i < header->len ; ++i)
+					for(i = (sizeof(struct ether_header) + ip_header_length + tcp_header_length) ; i < header->len ; ++i)
 					{
 						printf("%c", packet[i]);
 					}
