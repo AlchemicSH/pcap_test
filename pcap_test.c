@@ -1,8 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pcap.h>
+#include <arpa/inet.h>
+#include <net/ethernet.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/in.h>
 
-int main()
+int main(int argc, char *argv[])
 {
 	pcap_t *handle;
 	char *dev;
@@ -14,6 +20,12 @@ int main()
 	struct pcap_pkthdr *header;
 	const u_char *packet;
 
+	if(argc == 1)
+	{
+		printf("Usage: ./%s [interface_name]\n", argv[0]);
+		return -1;
+	}
+
 	int result = 0;   // pcap_next_ex function result value
 	int i;    // for value
 	int enter_cnt;    // count value for print packet
@@ -23,7 +35,7 @@ int main()
 	int src_port = 0;    // tcp port value (source)
 	int dst_port = 0;    // tcp port value (destination)
 
-	dev = pcap_lookupdev(errbuf);
+	dev = argv[1];
 	if(dev == NULL)
 	{
 		fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
@@ -34,7 +46,7 @@ int main()
 
 	if(pcap_lookupnet(dev, &net, &mask, errbuf) == -1)
 	{
-		fprintf(stderr, "Couldn't get netmask for device %s: %s\n", dev, errbuf);
+		fprintf(stderr, "Couldn't get netmask for device %s\n%s\n", dev, errbuf);
 		net = 0;
 		mask = 0;
 	}
@@ -42,7 +54,7 @@ int main()
 	handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
 	if(handle == NULL)
 	{
-		fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
+		fprintf(stderr, "Couldn't open device %s\n%s\n", dev, errbuf);
 		return 2;
 	}
 
@@ -67,15 +79,19 @@ int main()
 
 		if(result == -1) break;    // Signal Lost.
 
+		if(result == -2)      // No moe packets from the packet savefile.
+		{
+			fprintf(stderr, "No more packets from the packet savefile.\n");
+			break;
+		}
+
 		// Print packet.
 		printf("-----------------------------------------------------------\n");
 		printf("Jacked a packet with length of [%d]\n", header->len);
 		printf("-----------------------------------------------------------\n");
 
-		printf(" %02x ", packet[0]);
-		enter_cnt = 1;
-
-		for(i = 1 ; i < header->len ; ++i)
+		enter_cnt = 0;
+		for(i = 0 ; i < header->len ; ++i)
 		{
 			printf(" %02x ", packet[i]);
 			++enter_cnt;
@@ -89,6 +105,7 @@ int main()
 
 		// Analysis packet information
 		// First, Ethernet header information
+		/*
 		printf("[Ethernet Header]\n");
 		printf("Source Mac Address: ");
 		printf("%02x", packet[6]);
@@ -105,12 +122,20 @@ int main()
 			printf(":%02x", packet[i]);
 		}
 		printf("\n\n");
+		*/
+
+		struct ether_header *ether = (struct ether_header *)(packet);
+
+		printf("Source MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n", ether->ether_shost[0], ether->ether_shost[1], ether->ether_shost[2], ether->ether_shost[3], ether->ether_shost[4], ether->ether_shost[5]);
+		printf("Destination MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n", ether->ether_dhost[0], ether->ether_dhost[1], ether->ether_dhost[2], ether->ether_dhost[3], ether->ether_dhost[4], ether->ether_dhost[5]);
+		printf("\n");
 
 		// Second, IPv4 header information
-		if(packet[12] == 0x08 && packet[13] == 0x00)
+		if(packet[sizeof(struct ether_header) - 2] == 0x08 && packet[sizeof(struct ether_header) - 1] == 0x00)
 		{
 			printf("This packet type is IPv4!\n\n");
 			printf("[IPv4 Header]\n");
+			/*
 			printf("Source IP Address: %d", packet[14 + 12]);
 			for(i = 1 ; i < 4 ; ++i)
 			{
@@ -124,17 +149,35 @@ int main()
 				printf(".%d", packet[14 + 16 + i]);
 			}
 			printf("\n\n");
+			*/
+
+			struct iphdr *ip_header = (struct iphdr *)(packet + sizeof(struct ether_header));
+			unsigned short ip_header_length = ip_header->ihl * 4;
+			struct in_addr src, dst;
+
+			memset(&src, 0, sizeof(src));
+			memset(&dst, 0, sizeof(dst));
+
+			src.s_addr = ip_header->saddr;
+			dst.s_addr = ip_header->daddr;
+
+			printf("Source IP Address: %s\n", inet_ntoa(src));
+			printf("Destination IP Address: %s\n", inet_ntoa(dst));
+			printf("\n");
 
 			// Third, TCP header information
-			if(packet[14 + 9] == 0x06)
+			if(packet[sizeof(struct ether_header) + 9] == 0x06)
 			{
 				printf("This packet protocol is TCP!\n\n");
 
-				tcp_header_length = (int)packet[14 + 20 + 12] / 4;
+				tcp_header_length = (int)packet[sizeof(struct ether_header) + sizeof(struct iphdr) + 12] / 4;
 
 				printf("[TCP Header]\n");
 				printf("TCP Header Length: %d\n", tcp_header_length);
 
+				struct tcphdr *tcp_header = (struct tcphdr *)(packet + sizeof(struct ether_header) + ip_header_length);
+
+				/*
 				for(i = (14 + 20) ; i < (14 + 20 + 2) ; ++i)
 				{
 					if(i == (14 + 20))
@@ -161,10 +204,15 @@ int main()
 				}
 				printf("Destination Port Number: %d\n", dst_port);
 				printf("\n");
+				*/
+
+				printf("Source Port Number: %u\n", ntohs(tcp_header->source));
+				printf("Destination Port Number: %u\n", ntohs(tcp_header->dest));
+				printf("\n");
 
 				// Fourth, Data information
 				printf("[Data]\n");
-				if(packet[14 + 20 + tcp_header_length] == 0x00)
+				if(packet[sizeof(struct ether_header) + ip_header_length + tcp_header_length] == 0x00)
 				{
 					printf("There is no data!\n");
 				}
